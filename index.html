@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 하계휴가 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "맑은 고딕", Malgun Gothic, sans-serif; background: #F0F4F8; color: #2D3748; }
+
+.top-bar {
+  background: linear-gradient(135deg, #1F3864 0%, #2E5F8A 100%);
+  color: white; padding: 16px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.top-bar h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.top-bar .meta { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.top-bar .badge-row { display: flex; gap: 10px; }
+.badge { background: rgba(255,255,255,0.18); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; }
+.badge span { font-size: 15px; margin-left: 4px; }
+
+.grid { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: auto auto; gap: 14px; padding: 16px 20px; }
+.card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 16px; }
+.card-title { font-size: 11px; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+
+/* 회사별 요약 — 클릭 가능 */
+.summary-card { grid-column: 1; grid-row: 1 / 3; }
+.co-block {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+  cursor: pointer; transition: all 0.18s; position: relative;
+  border: 2px solid transparent;
+}
+.co-block:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); border-color: #2E5F8A; }
+.co-block:last-child { margin-bottom: 0; }
+.co-name { font-size: 11px; font-weight: 700; color: #4A5568; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between; }
+.co-name .click-hint { font-size:9px; color:#A0AEC0; }
+.co-stats { display: flex; gap: 8px; }
+.stat-pill { flex: 1; border-radius: 6px; padding: 6px 4px; text-align: center; }
+.stat-pill .num { font-size: 18px; font-weight: 800; line-height: 1; }
+.stat-pill .lbl { font-size: 9px; color: #718096; margin-top: 2px; }
+.co-note { font-size: 9px; color: #E53E3E; margin-top: 6px; line-height: 1.5; }
+
+/* 도넛 */
+.chart-card { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 20px; }
+.chart-wrap { position: relative; width: 180px; height: 180px; flex-shrink: 0; }
+.chart-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events:none; }
+.chart-center .big { font-size: 28px; font-weight: 800; color: #1F3864; }
+.chart-center .sub { font-size: 10px; color: #718096; }
+.legend { flex: 1; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-info { flex: 1; }
+.legend-label { font-size: 11px; font-weight: 600; color: #4A5568; }
+.legend-bar-wrap { height: 5px; background: #EDF2F7; border-radius: 3px; margin-top: 3px; }
+.legend-bar { height: 5px; border-radius: 3px; }
+
+/* 캘린더 */
+.cal-card { grid-column: 2; grid-row: 2; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-dow { text-align:center; font-size:9px; font-weight:700; color:#A0AEC0; padding:2px 0; }
+.cal-cell { border-radius:6px; padding:4px 3px; min-height:44px; }
+.cal-cell .day-num { font-size:10px; font-weight:600; color:#718096; margin-bottom:2px; }
+.cal-cell.weekend .day-num { color:#CBD5E0; }
+.cal-cell.vac1 { background:#EBF8FF; border:1px solid #BEE3F8; }
+.cal-cell.vac2 { background:#F0FFF4; border:1px solid #C6F6D5; }
+.cal-cell.vac-ltk { background:#FFFFF0; border:1px solid #FEFCBF; }
+.cal-cell.empty { background:transparent; }
+.vac-tag { font-size:8px; font-weight:700; border-radius:3px; padding:1px 4px; margin-bottom:1px; display:inline-block; }
+.tag-trk { background:#BEE3F8; color:#2B6CB0; }
+.tag-wmt { background:#FED7D7; color:#C53030; }
+.tag-lgs { background:#C6F6D5; color:#276749; }
+.tag-ltk { background:#FEFCBF; color:#975A16; }
+
+/* 특이사항 */
+.notice-row { display:flex; gap:10px; padding:0 20px 16px; }
+.notice-item { flex:1; background:white; border-radius:10px; padding:10px 14px; border-left:4px solid; display:flex; gap:10px; align-items:flex-start; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.notice-icon { font-size:18px; }
+.notice-title { font-size:10px; font-weight:700; margin-bottom:2px; }
+.notice-body { font-size:9px; color:#718096; line-height:1.6; }
+
+/* 명단 */
+.table-section { padding:0 20px 20px; }
+.filter-row { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.filter-btn { padding:5px 14px; border:1.5px solid #CBD5E0; border-radius:20px; font-size:11px; cursor:pointer; background:white; font-family:inherit; transition:all 0.15s; }
+.filter-btn.active, .filter-btn:hover { background:#1F3864; color:white; border-color:#1F3864; }
+table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.07); font-size:11px; }
+th { background:#1F3864; color:white; padding:9px 12px; text-align:center; font-size:10px; font-weight:700; }
+td { padding:7px 12px; text-align:center; border-bottom:1px solid #F7FAFC; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:#EBF8FF; }
+.tag-period { display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:700; }
+.p1{background:#BEE3F8;color:#2B6CB0;} .p2{background:#C6F6D5;color:#276749;}
+.pm{background:#FEFCBF;color:#975A16;} .px{background:#FED7D7;color:#C53030;}
+
+/* ===================== 모달 ===================== */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.5); z-index:1000;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:white; border-radius:14px;
+  width:92vw; max-width:860px; max-height:88vh;
+  overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-header {
+  padding:16px 20px; display:flex; align-items:center; justify-content:space-between;
+  color:white;
+}
+.modal-header h2 { font-size:15px; font-weight:700; }
+.modal-header .sub { font-size:11px; opacity:0.8; margin-top:2px; }
+.modal-close {
+  background:rgba(255,255,255,0.2); border:none; color:white;
+  width:28px; height:28px; border-radius:50%; font-size:16px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.modal-close:hover { background:rgba(255,255,255,0.35); }
+.modal-body { overflow-y:auto; padding:16px 20px; flex:1; }
+
+/* 간트 테이블 */
+.gantt-table { width:100%; border-collapse:collapse; font-size:11px; }
+.gantt-table th {
+  background:#F7FAFC; color:#4A5568; font-size:9px; font-weight:700;
+  padding:6px 4px; text-align:center; border:1px solid #E2E8F0;
+  white-space:nowrap;
+}
+.gantt-table th.sticky { text-align:left; padding-left:8px; min-width:70px; position:sticky; left:0; background:#F7FAFC; z-index:2; }
+.gantt-table th.sticky2 { display:none; }
+.gantt-table td {
+  padding:5px 4px; text-align:center; border:1px solid #EDF2F7;
+  font-size:10px;
+}
+.gantt-table td.name-cell { text-align:left; padding-left:8px; font-weight:600; background:#FAFAFA; position:sticky; left:0; z-index:1; white-space:nowrap; }
+.gantt-table td.rank-cell { display:none; }
+.gantt-table tr:hover td { filter:brightness(0.96); }
+.gantt-table td.dept-header {
+  background:#EDF2F7; font-weight:700; font-size:10px;
+  text-align:left; padding-left:8px; color:#4A5568;
+}
+
+/* 날짜 셀 색상 */
+.vac-circle {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; border-radius:50%;
+  font-size:9px; font-weight:700;
+}
+.vc-trk { background:#4299E1; color:white; }
+.vc-wmt { background:#FC8181; color:white; }
+.vc-lgs { background:#48BB78; color:white; }
+.vc-ltk { background:#ECC94B; color:#744210; }
+.vc-special { background:#9F7AEA; color:white; }
+
+.day-col-weekend { background:#F9FAFB; }
+.day-col-holiday { background:#FFF5F5; }
+
+.modal-table-wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <div style="font-size:18px;font-weight:700;">2026년 하계휴가 현황 대시보드</div>
+  </div>
+  <div class="badge-row">
+    <div class="badge">총 인원 <span>75명</span></div>
+    <div class="badge">1차 확정 <span>50명</span></div>
+    <div class="badge">2차 확정 <span>10명</span></div>
+    <div class="badge">미정 <span>14명</span></div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- 회사별 요약 -->
+  <div class="card summary-card">
+    <div class="card-title">📊 회사별 인원 현황 <span style="font-size:9px;color:#A0AEC0;font-weight:400;">(클릭 → 개인 일정)</span></div>
+
+    <div class="co-block" style="background:#EBF5FC;" onclick="openModal('TRK')">
+      <div class="co-name">🔵 (주)트라코월드 (TRK) <span class="click-hint">📋 클릭</span></div>
+      <div class="co-stats">
+        <div class="stat-pill" style="background:#BEE3F8;"><div class="num" style="color:#2B6CB0;">38</div><div class="lbl">총인원</div></div>
+        <div class="stat-pill" style="background:#E9F5FF;"><div class="num" style="color:#3182CE;">29</div><div class="lbl">1차</div></div>
+        <div class="stat-pill" style="background:#F0F9FF;"><div class="num" style="color:#63B3ED;">9</div><div class="lbl">2차</div></div>
+      </div>
+    </div>
+
+    <div class="co-block" style="background:#F2FAF0;" onclick="openModal('LGS')">
+      <div class="co-name">🟢 (주)엘지에스코퍼레이션 (LGS) <span class="click-hint">📋 클릭</span></div>
+      <div class="co-stats">
+        <div class="stat-pill" style="background:#C6F6D5;"><div class="num" style="color:#276749;">2</div><div class="lbl">총인원</div></div>
+        <div class="stat-pill" style="background:#E6FFED;"><div class="num" style="color:#38A169;">1</div><div class="lbl">1차</div></div>
+        <div class="stat-pill" style="background:#F0FFF4;"><div class="num" style="color:#68D391;">1</div><div class="lbl">2차</div></div>
+      </div>
+    </div>
+
+    <div class="co-block" style="background:#FEF6F3;" onclick="openModal('WMT')">
+      <div class="co-name">🔴 (주)월마텍 (WMT) <span class="click-hint">📋 클릭</span></div>
+      <div class="co-stats">
+        <div class="stat-pill" style="background:#FED7D7;"><div class="num" style="color:#C53030;">19</div><div class="lbl">총인원</div></div>
+        <div class="stat-pill" style="background:#FFF5F5;"><div class="num" style="color:#E53E3E;">16</div><div class="lbl">1차</div></div>
+        <div class="stat-pill" style="background:#FFF8F8;"><div class="num" style="color:#FC8181;">1</div><div class="lbl">2차</div></div>
+      </div>
+      <div class="co-note">⚠ 염강원(육아휴직), 윤석재(출산휴가) 제외</div>
+    </div>
+
+    <div class="co-block" style="background:#FFFCE8;" onclick="openModal('LTK')">
+      <div class="co-name">🟡 (주)리텍FES (LTK) <span class="click-hint">📋 클릭</span></div>
+      <div class="co-stats">
+        <div class="stat-pill" style="background:#FEFCBF;"><div class="num" style="color:#975A16;">16</div><div class="lbl">총인원</div></div>
+        <div class="stat-pill" style="background:#FFFFF0;"><div class="num" style="color:#B7791F;">2</div><div class="lbl">확정</div></div>
+        <div class="stat-pill" style="background:#FFFFF5;"><div class="num" style="color:#D69E2E;">14</div><div class="lbl">미정</div></div>
+      </div>
+      <div class="co-note">⚠ 공사 일정 연동 미정 14명</div>
+    </div>
+  </div>
+
+  <!-- 도넛 차트 -->
+  <div class="card chart-card">
+    <div>
+      <div class="card-title">🗓 기간별 분포</div>
+      <div class="chart-wrap">
+        <canvas id="donut"></canvas>
+        <div class="chart-center"><div class="big">75</div><div class="sub">전체 인원</div></div>
+      </div>
+    </div>
+    <div class="legend" style="padding-top:8px;">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#4299E1;"></div>
+        <div class="legend-info"><div class="legend-label">1차 — 7/27~7/31 &nbsp;<strong>50명</strong></div>
+        <div class="legend-bar-wrap"><div class="legend-bar" style="width:67%;background:#4299E1;"></div></div></div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#48BB78;"></div>
+        <div class="legend-info"><div class="legend-label">2차 — 8/3~8/7 &nbsp;<strong>10명</strong></div>
+        <div class="legend-bar-wrap"><div class="legend-bar" style="width:13%;background:#48BB78;"></div></div></div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ECC94B;"></div>
+        <div class="legend-info"><div class="legend-label">미정/추후결정 &nbsp;<strong>14명</strong></div>
+        <div class="legend-bar-wrap"><div class="legend-bar" style="width:19%;background:#ECC94B;"></div></div></div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#FC8181;"></div>
+        <div class="legend-info"><div class="legend-label">휴가 없음 (특수) &nbsp;<strong>2명</strong></div>
+        <div class="legend-bar-wrap"><div class="legend-bar" style="width:3%;background:#FC8181;"></div></div></div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:#FFF5F5;border-radius:8px;border-left:3px solid #FC8181;">
+        <div style="font-size:10px;font-weight:700;color:#C53030;margin-bottom:8px;">🚨 비상근무자</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:11px;color:#718096;line-height:1.9;">
+          <div>TRK · 인사총무 · 한권수 · 010-3480-2871</div>
+          <div>TRK · 인사총무 · 이윤형 · 010-3399-2192</div>
+          <div>TRK · 재무회계 · 채지예 · 010-9055-2521</div>
+          <div>TRK · 국내지원 · 정명주 · 010-4042-8708</div>
+          <div>TRK · 국내지원 · 조신후 · 010-2459-9961</div>
+          <div>TRK · 사업2부 · 김규식 · 010-6612-6875</div>
+          <div>TRK · 방역사업부 · 김동광 · 010-5406-4860</div>
+          <div>TRK · 기구개발팀 · 이승천 · 010-4076-0899</div>
+          <div>TRK · 기계개발팀 · 한명구 · 010-5391-8047</div>
+          <div>TRK · 기계개발팀 · 최원우 · 010-2236-0015</div>
+          <div>TRK · 전장개발팀 · 조명수 · 010-8505-0535</div>
+          <div>WMT · 생산 · 모연선 · 010-9048-1022</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 캘린더 -->
+  <div class="card cal-card">
+    <div class="card-title">📅 휴가 캘린더 (7월~8월)</div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+      <span class="vac-tag tag-trk">TRK</span>
+      <span class="vac-tag tag-wmt">WMT</span>
+      <span class="vac-tag tag-lgs">LGS</span>
+      <span class="vac-tag tag-ltk">LTK</span>
+      <span style="font-size:9px;color:#718096;margin-left:4px;align-self:center;">색상: 가장 많은 인원 기준</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div>
+        <div style="text-align:center;font-size:12px;font-weight:700;color:#1F3864;padding:4px 0;border-bottom:2px solid #1F3864;margin-bottom:8px;">7월 July</div>
+        <div class="cal-grid" id="cal7"></div>
+      </div>
+      <div>
+        <div style="text-align:center;font-size:12px;font-weight:700;color:#1F3864;padding:4px 0;border-bottom:2px solid #276749;margin-bottom:8px;">8월 August</div>
+        <div class="cal-grid" id="cal8"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 특이사항 -->
+<div class="notice-row">
+  <div class="notice-item" style="border-color:#E53E3E;">
+    <div class="notice-icon">⚠️</div>
+    <div><div class="notice-title" style="color:#C53030;">휴가 미적용 인원 (2명)</div>
+    <div class="notice-body">염강원 (WMT 품질) — 육아휴직 중<br>윤석재 (WMT 생산관리) — 8월 중 출산휴가 예정</div></div>
+  </div>
+  <div class="notice-item" style="border-color:#D69E2E;">
+    <div class="notice-icon">🔄</div>
+    <div><div class="notice-title" style="color:#975A16;">LTK 미정 인원 (14명)</div>
+    <div class="notice-body">공사 일정 확정 후 재취합 필요<br>안종필(8/3~7), 최용규(7/22~24) 확정 완료</div></div>
+  </div>
+  <div class="notice-item" style="border-color:#3182CE;">
+    <div class="notice-icon">🏥</div>
+    <div><div class="notice-title" style="color:#2B6CB0;">비상근무 지정 (TRK 개발팀)</div>
+    <div class="notice-body">한권수·이윤형·채지예·정명주·조신후·김규식·김동광 (TRK) + 이승천·한명구·최원우·조명수 (TRK) + 모연선 (WMT) — 총 12명</div></div>
+  </div>
+  <div class="notice-item" style="border-color:#38A169;">
+    <div class="notice-icon">✅</div>
+    <div><div class="notice-title" style="color:#276749;">1차 집중도</div>
+    <div class="notice-body">전체의 67% (50명)이 7/27~7/31 집중<br>→ 해당 기간 업무 공백 사전 준비 요망</div></div>
+  </div>
+</div>
+
+<!-- 명단 테이블 -->
+<div class="table-section">
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="filterTable('all',this)">전체 (75)</button>
+    <button class="filter-btn" onclick="filterTable('TRK',this)">TRK (39)</button>
+    <button class="filter-btn" onclick="filterTable('WMT',this)">WMT (20)</button>
+    <button class="filter-btn" onclick="filterTable('LTK',this)">LTK (15)</button>
+    <button class="filter-btn" onclick="filterTable('LGS',this)">LGS (2)</button>
+    <button class="filter-btn" onclick="filterTable('1차',this)">1차 확정</button>
+    <button class="filter-btn" onclick="filterTable('2차',this)">2차 확정</button>
+    <button class="filter-btn" onclick="filterTable('미정',this)">미정</button>
+  </div>
+  <table id="mainTable">
+    <thead><tr><th>소속</th><th>부서</th><th>성명</th><th>희망 휴가기간</th><th>구분</th><th>방문예정지</th><th>비상시 연락처</th><th>비고</th></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- ===================== 모달 ===================== -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOut(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-header" id="modalHeader">
+      <div><h2 id="modalTitle">휴가일정</h2><div class="sub" id="modalSub"></div></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-table-wrap" id="modalContent"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── 데이터 ───────────────────────────────────────
+const people = [
+  {co:"TRK",dept:"경영지원",name:"김보정",days7:[28,29,30,31],days8b:[],note:"",tel:"010-4769-8623",area:"광양"},
+  {co:"TRK",dept:"인사총무",name:"한권수",days7:[30,31],days8b:[13,14,18],note:"비상근무",tel:"010-3480-2871",area:"부산/화순"},
+  {co:"TRK",dept:"인사총무",name:"안정현",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9696-3151",area:"강원"},
+  {co:"TRK",dept:"인사총무",name:"이윤형",days7:[27,28,29],days8b:[],note:"비상근무",tel:"010-3399-2192",area:"울산"},
+  {co:"TRK",dept:"재무회계",name:"홍미영",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2400-1155",area:"충청도"},
+  {co:"TRK",dept:"재무회계",name:"채지예",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-9055-2521",area:"미정"},
+  {co:"TRK",dept:"국내지원",name:"강은진",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3936-9588",area:"해외"},
+  {co:"TRK",dept:"국내지원",name:"강미희",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4264-9713",area:"강원도"},
+  {co:"TRK",dept:"국내지원",name:"정명주",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-4042-8708",area:"강원도"},
+  {co:"TRK",dept:"국내지원",name:"조신후",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-2459-9961",area:"양평"},
+  {co:"TRK",dept:"국내지원",name:"곽은정",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-5187-0325",area:"여수"},
+  {co:"TRK",dept:"해외지원",name:"문태호",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9138-5901",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"황종현",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3168-7060",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"김수민",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7472-3478",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"박원",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-8608-8925",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"주지선",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9049-2847",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"박서진",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2270-9392",area:"미정"},
+  {co:"TRK",dept:"사업1부",name:"최현준",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3505-7171",area:"대구"},
+  {co:"TRK",dept:"사업2부",name:"박철홍",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9977-0318",area:"강원"},
+  {co:"TRK",dept:"사업2부",name:"김경선",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2876-5030",area:"진주"},
+  {co:"TRK",dept:"사업2부",name:"정현찬",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9778-4259",area:"부산"},
+  {co:"TRK",dept:"사업2부",name:"김계호",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3261-0120",area:"통영"},
+  {co:"TRK",dept:"사업2부",name:"김규식",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-6612-6875",area:"서울"},
+  {co:"TRK",dept:"사업2부",name:"전승탁",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7213-0006",area:"부산"},
+  {co:"TRK",dept:"EPC/플랜트팀",name:"김광일",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4331-3062",area:"당진"},
+  {co:"TRK",dept:"EPC/플랜트팀",name:"강도훈",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-8946-4811",area:"베트남"},
+  {co:"TRK",dept:"EPC/플랜트팀",name:"이성안",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7770-4811",area:"세종/횡성/하동"},
+  {co:"TRK",dept:"방역사업부",name:"김동광",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-5406-4860",area:"미정"},
+  {co:"TRK",dept:"방역사업부",name:"최윤석",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3108-2817",area:"미정"},
+  {co:"TRK",dept:"기구개발팀",name:"이승천",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-4076-0899",area:"경기 부천"},
+  {co:"TRK",dept:"기구개발팀",name:"윤영태",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3428-7033",area:"강원 동해"},
+  {co:"TRK",dept:"기계개발팀",name:"한명구",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-5391-8047",area:"미정"},
+  {co:"TRK",dept:"기계개발팀",name:"신현근",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4967-6707",area:"충북 제천"},
+  {co:"TRK",dept:"기계개발팀",name:"최원우",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-2236-0015",area:"강원 동해"},
+  {co:"TRK",dept:"전장개발팀",name:"조명수",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-8505-0535",area:"경남 진주"},
+  {co:"TRK",dept:"전장개발팀",name:"압둘 와히드",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2112-7274",area:"경기 화성"},
+  {co:"TRK",dept:"지원기획",name:"김유승",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4402-0795",area:"강원"},
+  {co:"TRK",dept:"지원기획",name:"이옥균",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-5288-0235",area:"강원"},
+  // TRK 임원 제거됨 (최정환)
+  {co:"LGS",dept:"관리부",name:"김혜진",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4723-4162",area:"미정"},
+  {co:"LGS",dept:"마케팅",name:"이윤호",days7:[],days8b:[3,4,5,6,7],note:"",tel:"010-2123-2319",area:"미정"},
+  // WMT 임원 제거됨 (배상직)
+  {co:"WMT",dept:"관리",name:"이재실",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7194-4717",area:"미정"},
+  {co:"WMT",dept:"관리",name:"강선미",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2602-8523",area:"보성"},
+  {co:"WMT",dept:"관리",name:"김주혜",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-4884-2942",area:"미정"},
+  {co:"WMT",dept:"관리",name:"이용일",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-2665-2236",area:"미정"},
+  {co:"WMT",dept:"품질",name:"김동훈",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7533-4474",area:"미정"},
+  {co:"WMT",dept:"품질",name:"염강원",days7:[],days8b:[],note:"육아휴직",tel:"",area:"미정"},
+  {co:"WMT",dept:"생산",name:"고경민",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3102-9890",area:"미정"},
+  {co:"WMT",dept:"생산",name:"모연선",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-9048-1022",area:"미정"},
+  {co:"WMT",dept:"생산",name:"조산호",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9262-5312",area:"미정"},
+  {co:"WMT",dept:"생산",name:"박광덕",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3799-2149",area:"미정"},
+  {co:"WMT",dept:"생산관리",name:"윤석재",days7:[],days8b:[],note:"출산휴가예정",tel:"010-5766-4332",area:"미정"},
+  {co:"WMT",dept:"가공",name:"이규황",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9749-8250",area:"미정"},
+  {co:"WMT",dept:"가공",name:"나윤성",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-6301-9080",area:"미정"},
+  {co:"WMT",dept:"가공",name:"윤상준",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3122-4527",area:"미정"},
+  {co:"WMT",dept:"물류",name:"김승욱",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-5052-8101",area:"미정"},
+  {co:"WMT",dept:"물류",name:"이혜림",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-8201-0115",area:"일산"},
+  {co:"WMT",dept:"물류",name:"정지성",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9665-1766",area:"미정"},
+  {co:"WMT",dept:"물류",name:"최재오",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-8788-3527",area:"단양"},
+  {co:"WMT",dept:"물류",name:"김희준",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-6240-5972",area:"양양"},
+  // LTK 임원 제거됨 (김창섭)
+  {co:"LTK",dept:"관리팀",name:"조윤정",days7:[],days8b:[],note:"추후결정",tel:"010-8929-6416",area:"미정"},
+  {co:"LTK",dept:"관리팀",name:"송은혜",days7:[],days8b:[],note:"추후결정",tel:"010-4161-6344",area:"미정"},
+  {co:"LTK",dept:"관리팀",name:"신희진",days7:[],days8b:[],note:"추후결정",tel:"010-2421-5236",area:"미정"},
+  {co:"LTK",dept:"사업팀",name:"김홍래",days7:[],days8b:[],note:"추후결정",tel:"010-8203-0129",area:"미정"},
+  {co:"LTK",dept:"사업팀",name:"민상윤",days7:[],days8b:[],note:"추후결정",tel:"010-4744-6751",area:"미정"},
+  {co:"LTK",dept:"사업팀",name:"윤혜상",days7:[],days8b:[],note:"추후결정",tel:"010-6460-2763",area:"미정"},
+  {co:"LTK",dept:"사업팀",name:"김선경",days7:[],days8b:[],note:"추후결정",tel:"010-4460-7646",area:"미정"},
+  {co:"LTK",dept:"사업팀",name:"김응룡",days7:[],days8b:[],note:"추후결정",tel:"010-9927-6760",area:"미정"},
+  {co:"LTK",dept:"플랜트팀",name:"이용범",days7:[],days8b:[],note:"추후결정",tel:"010-3111-5226",area:"미정"},
+  {co:"LTK",dept:"플랜트팀",name:"전승현",days7:[],days8b:[],note:"추후결정",tel:"010-6829-7119",area:"미정"},
+  {co:"LTK",dept:"플랜트팀",name:"김관호",days7:[],days8b:[],note:"추후결정",tel:"010-5206-4593",area:"미정"},
+  {co:"LTK",dept:"기술팀",name:"오용민",days7:[],days8b:[],note:"추후결정",tel:"010-4780-7254",area:"미정"},
+  {co:"LTK",dept:"기술팀",name:"안종필",days7:[],days8b:[3,4,5,6,7],note:"확정",tel:"010-5559-7175",area:"전라도 고창"},
+  {co:"LTK",dept:"기술팀",name:"최용규",days7:[22,23,24],days8b:[],note:"확정",tel:"010-9060-5252",area:"강원"},
+  {co:"LTK",dept:"기술팀",name:"권상익",days7:[],days8b:[],note:"추후결정",tel:"010-8367-1334",area:"미정"},
+  {co:"LTK",dept:"기술팀",name:"전우영",days7:[],days8b:[],note:"추후결정",tel:"010-7541-6565",area:"미정"},
+];
+
+const coMeta = {
+  TRK:{ label:"(주)트라코월드", color:"#1F6FB2", bg:"#EBF8FF", vcls:"vc-trk" },
+  LGS:{ label:"(주)엘지에스코퍼레이션", color:"#276749", bg:"#F0FFF4", vcls:"vc-lgs" },
+  WMT:{ label:"(주)월마텍", color:"#C53030", bg:"#FFF5F5", vcls:"vc-wmt" },
+  LTK:{ label:"(주)리텍FES", color:"#975A16", bg:"#FFFFF0", vcls:"vc-ltk" },
+};
+
+// 날짜 컬럼 정의
+const cols = [
+  {m:7,d:22,label:"7/22",weekend:false,period:0},
+  {m:7,d:23,label:"7/23",weekend:false,period:0},
+  {m:7,d:24,label:"7/24",weekend:false,period:0},
+  {m:7,d:25,label:"7/25",weekend:true,period:0},
+  {m:7,d:26,label:"7/26",weekend:true,period:0},
+  {m:7,d:27,label:"7/27",weekend:false,period:1},
+  {m:7,d:28,label:"7/28",weekend:false,period:1},
+  {m:7,d:29,label:"7/29",weekend:false,period:1},
+  {m:7,d:30,label:"7/30",weekend:false,period:1},
+  {m:7,d:31,label:"7/31",weekend:false,period:1},
+  {m:8,d:1,label:"8/1(토)",weekend:true,period:0},
+  {m:8,d:2,label:"8/2(일)",weekend:true,period:0},
+  {m:8,d:3,label:"8/3",weekend:false,period:2},
+  {m:8,d:4,label:"8/4",weekend:false,period:2},
+  {m:8,d:5,label:"8/5",weekend:false,period:2},
+  {m:8,d:6,label:"8/6",weekend:false,period:2},
+  {m:8,d:7,label:"8/7",weekend:false,period:2},
+  {m:8,d:8,label:"8/8(토)",weekend:true,period:0},
+  {m:8,d:13,label:"8/13",weekend:false,period:0},
+  {m:8,d:14,label:"8/14",weekend:false,period:0},
+  {m:8,d:18,label:"8/18",weekend:false,period:0},
+];
+
+function isVac(p, col) {
+  if (col.m===8 && col.d===1) return false;
+  if (col.m===7) return p.days7.includes(col.d);
+  return (p.days8b||[]).includes(col.d);
+}
+
+function openModal(co) {
+  const meta = coMeta[co];
+  document.getElementById('modalTitle').textContent = meta.label + ' — 개인별 휴가일정';
+  document.getElementById('modalSub').textContent = `${people.filter(p=>p.co===co).length}명`;
+  document.getElementById('modalHeader').style.background = `linear-gradient(135deg, ${meta.color}, ${meta.color}CC)`;
+  document.getElementById('modalContent').innerHTML = buildGantt(co);
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalOut(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+
+function buildGantt(co) {
+  const meta = coMeta[co];
+  const filtered = people.filter(p=>p.co===co);
+
+  // 부서 그룹
+  const depts = [...new Set(filtered.map(p=>p.dept))];
+
+  // 기간 구분 헤더 행
+  let periodTh = `<th class="sticky" style="background:#E2E8F0;"></th>`;
+  let i=0;
+  while(i<cols.length){
+    const c=cols[i];
+    if(c.period===1){
+      // 1차 기간 연속 셀 카운트
+      let span=0; let j=i;
+      while(j<cols.length && cols[j].period===1){span++;j++;}
+      periodTh+=`<th colspan="${span}" style="background:#DBEAFE;color:#1D4ED8;font-size:10px;font-weight:800;border:1px solid #BFDBFE;">🔵 1차 휴가기간 (7/27~7/31)</th>`;
+      i=j;
+    } else if(c.period===2){
+      let span=0; let j=i;
+      while(j<cols.length && cols[j].period===2){span++;j++;}
+      periodTh+=`<th colspan="${span}" style="background:#D1FAE5;color:#065F46;font-size:10px;font-weight:800;border:1px solid #A7F3D0;">🟢 2차 휴가기간 (8/3~8/7)</th>`;
+      i=j;
+    } else {
+      periodTh+=`<th style="background:#FEE2E2;color:#DC2626;font-size:9px;">${c.weekend?'주말':''}</th>`;
+      i++;
+    }
+  }
+  periodTh+=`<th style="background:#E2E8F0;"></th>`;
+
+  // 날짜 헤더 행
+  let th = `<th class="sticky">성명</th>`;
+  cols.forEach(c => {
+    let style='';
+    if(c.period===1) style='background:#EFF6FF;color:#1D4ED8;font-weight:700;';
+    else if(c.period===2) style='background:#ECFDF5;color:#065F46;font-weight:700;';
+    else if(c.weekend) style='background:#FEE2E2;color:#DC2626;';
+    th += `<th style="${style}">${c.label}</th>`;
+  });
+  th += `<th>비고</th>`;
+
+  let tbody = '';
+  depts.forEach(dept => {
+    // dept row
+    tbody += `<tr><td class="dept-header" colspan="${cols.length+3}">◆ ${dept}</td></tr>`;
+    filtered.filter(p=>p.dept===dept).forEach(p => {
+      let tds = `<td class="name-cell">${p.name}</td>`;
+      cols.forEach(c => {
+        const on = isVac(p, c);
+        let style='';
+        if(c.period===1) style='background:#F0F9FF;';
+        else if(c.period===2) style='background:#F0FFF8;';
+        else if(c.weekend) style='background:#FEF2F2;';
+        if (on) {
+          tds += `<td style="${style}"><span class="vac-circle ${meta.vcls}">○</span></td>`;
+        } else {
+          tds += `<td style="${style}"></td>`;
+        }
+      });
+      let noteTd = '';
+      if(p.note) noteTd = `<td style="font-size:9px;color:#718096;white-space:nowrap;">${p.note}</td>`;
+      else noteTd = `<td></td>`;
+      tds += noteTd;
+      tbody += `<tr>${tds}</tr>`;
+    });
+  });
+
+  // 하단 요약행 (날짜별 인원수)
+  let sumTds = `<td class="name-cell" style="font-weight:800;font-size:10px;">인원합계</td>`;
+  cols.forEach(c => {
+    const cnt = filtered.filter(p=>isVac(p,c)).length;
+    let style='font-size:10px;font-weight:700;color:#2B6CB0;';
+    if(c.period===1) style+='background:#DBEAFE;';
+    else if(c.period===2) style+='background:#D1FAE5;color:#065F46;';
+    else if(c.weekend) style='font-size:9px;color:#DC2626;background:#FEE2E2;';
+    sumTds += `<td style="${style}">${cnt>0?cnt:''}</td>`;
+  });
+  sumTds += `<td></td>`;
+  tbody += `<tr style="background:#EBF5FC;border-top:2px solid #BEE3F8;">${sumTds}</tr>`;
+
+  return `<table class="gantt-table"><thead><tr>${periodTh}</tr><tr>${th}</tr></thead><tbody>${tbody}</tbody></table>`;
+}
+
+// ─── 테이블 렌더 ───────────────────────────────────
+function renderTable(filter) {
+  const tbody = document.getElementById('tableBody');
+  const tagClass = {'1차':'p1','2차':'p2','미정':'pm','분산':'p1','휴가없음':'px'};
+  const coColors = {TRK:'#EBF8FF',LGS:'#F0FFF4',WMT:'#FFF5F5',LTK:'#FFFFF0'};
+  let html = '';
+  people.forEach(p => {
+    const allDays = [...p.days7,...(p.days8||[]),...(p.days8b||[])];
+    let cat = '미정', period = '추후 결정';
+    if(p.note==='육아휴직'||p.note==='출산휴가예정'){cat='휴가없음';period='–';}
+    else if(p.days8b.length>0 && p.days7.length===0 && (p.days8||[]).length===0){cat='2차';period='8/3~8/7';}
+    else if(p.days7.length>0||(p.days8||[]).length>0){
+      cat='1차';
+      const mn=Math.min(...p.days7), mx=Math.max(...p.days7);
+      period=mn===mx?`7/${mn}`:`7/${mn}~7/${mx}`;
+      if((p.days8||[]).length>0) period+=' + 8/1';
+    }
+    if(p.days7.length>0 && p.days8b.length>0) {cat='분산';}
+
+    let show = filter==='all'||p.co===filter||(filter==='1차'&&cat==='1차')||(filter==='2차'&&cat==='2차')||(filter==='미정'&&cat==='미정');
+    if(!show) return;
+    const tc = tagClass[cat]||'pm';
+    html += `<tr style="background:${coColors[p.co]||'white'}">
+      <td><strong>${p.co}</strong></td><td>${p.dept}</td><td>${p.name}</td>
+      <td>${period}</td><td><span class="tag-period ${tc}">${cat}</span></td>
+      <td style="color:#718096;font-size:10px;">${p.area||''}</td>
+      <td style="color:#555;font-size:10px;">${p.tel||''}</td>
+      <td style="color:#718096;font-size:10px;">${p.note}</td></tr>`;
+  });
+  tbody.innerHTML = html;
+}
+function filterTable(f,btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderTable(f);
+}
+renderTable('all');
+
+// ─── 도넛 차트 ───────────────────────────────────
+const ctx = document.getElementById('donut').getContext('2d');
+new Chart(ctx,{type:'doughnut',data:{
+  labels:['1차(7/27~7/31)','2차(8/3~8/7)','미정','휴가없음'],
+  datasets:[{data:[50,10,14,0],backgroundColor:['#4299E1','#48BB78','#ECC94B','#FC8181'],borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
+},options:{cutout:'68%',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}명`}}}}});
+
+// ─── 캘린더 ───────────────────────────────────────
+function buildCal(month, containerId) {
+  const container = document.getElementById(containerId);
+  const dows = ['일','월','화','수','목','금','토'];
+  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const year=2026, firstDay=new Date(year,month-1,1).getDay(), lastDate=new Date(year,month,0).getDate();
+  const vacData={};
+  const mark=(m,days,co)=>{ if(m!==month) return; days.forEach(d=>{ if(!vacData[d]) vacData[d]={}; vacData[d][co]=(vacData[d][co]||0)+1; }); };
+  mark(7,[27,28,29,30,31],'TRK'); mark(7,[27,28,29,30,31],'WMT');
+  mark(7,[27,28,29,30,31],'LGS'); mark(7,[27,28,29,30,31],'LTK');
+  mark(7,[22,23,24],'LTK');
+  mark(8,[3,4,5,6,7],'TRK'); mark(8,[3,4,5,6,7],'WMT');
+  mark(8,[3,4,5,6,7],'LGS'); mark(8,[3,4,5,6,7],'LTK');
+  mark(8,[13,14,18],'TRK');
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-cell empty"></div>`;
+  for(let d=1;d<=lastDate;d++){
+    const dow=new Date(year,month-1,d).getDay();
+    const isWe=dow===0||dow===6;
+    const vac=vacData[d];
+    let cls='cal-cell',tags='';
+    if(isWe) cls+=' weekend';
+    if(vac){
+      const coOrder=['TRK','WMT','LGS','LTK'];
+      coOrder.forEach(co=>{ if(vac[co]) tags+=`<span class="vac-tag tag-${co.toLowerCase()}">${co}</span><br>`; });
+      const dom=coOrder.find(c=>vac[c]);
+      cls+=dom==='TRK'?' vac1':dom==='WMT'?' vac2':' vac-ltk';
+    }
+    html+=`<div class="${cls}"><div class="day-num">${d}</div>${tags}</div>`;
+  }
+  container.innerHTML=html;
+}
+buildCal(7,'cal7'); buildCal(8,'cal8');
+
+// ESC 닫기
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
