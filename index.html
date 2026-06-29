@@ -167,8 +167,8 @@ tr:hover td { background:#EBF8FF; }
   </div>
   <div class="badge-row">
     <div class="badge">총 인원 <span>75명</span></div>
-    <div class="badge">1차 확정 <span>50명</span></div>
-    <div class="badge">2차 확정 <span>10명</span></div>
+    <div class="badge">1차 확정 <span>49명</span></div>
+    <div class="badge">2차 확정 <span>11명</span></div>
     <div class="badge">미정 <span>14명</span></div>
   </div>
 </div>
@@ -183,8 +183,8 @@ tr:hover td { background:#EBF8FF; }
       <div class="co-name">🔵 (주)트라코월드 (TRK) <span class="click-hint">📋 클릭</span></div>
       <div class="co-stats">
         <div class="stat-pill" style="background:#BEE3F8;"><div class="num" style="color:#2B6CB0;">38</div><div class="lbl">총인원</div></div>
-        <div class="stat-pill" style="background:#E9F5FF;"><div class="num" style="color:#3182CE;">29</div><div class="lbl">1차</div></div>
-        <div class="stat-pill" style="background:#F0F9FF;"><div class="num" style="color:#63B3ED;">9</div><div class="lbl">2차</div></div>
+        <div class="stat-pill" style="background:#E9F5FF;"><div class="num" style="color:#3182CE;">28</div><div class="lbl">1차</div></div>
+        <div class="stat-pill" style="background:#F0F9FF;"><div class="num" style="color:#63B3ED;">10</div><div class="lbl">2차</div></div>
       </div>
     </div>
 
@@ -230,12 +230,12 @@ tr:hover td { background:#EBF8FF; }
     <div class="legend" style="padding-top:8px;">
       <div class="legend-item">
         <div class="legend-dot" style="background:#4299E1;"></div>
-        <div class="legend-info"><div class="legend-label">1차 — 7/27~7/31 &nbsp;<strong>50명</strong></div>
+        <div class="legend-info"><div class="legend-label">1차 — 7/27~7/31 &nbsp;<strong>49명</strong></div>
         <div class="legend-bar-wrap"><div class="legend-bar" style="width:67%;background:#4299E1;"></div></div></div>
       </div>
       <div class="legend-item">
         <div class="legend-dot" style="background:#48BB78;"></div>
-        <div class="legend-info"><div class="legend-label">2차 — 8/3~8/7 &nbsp;<strong>10명</strong></div>
+        <div class="legend-info"><div class="legend-label">2차 — 8/3~8/7 &nbsp;<strong>11명</strong></div>
         <div class="legend-bar-wrap"><div class="legend-bar" style="width:13%;background:#48BB78;"></div></div></div>
       </div>
       <div class="legend-item">
@@ -262,6 +262,7 @@ tr:hover td { background:#EBF8FF; }
           <div>TRK · 기계개발팀 · 한명구 · 010-5391-8047</div>
           <div>TRK · 기계개발팀 · 최원우 · 010-2236-0015</div>
           <div>TRK · 전장개발팀 · 조명수 · 010-8505-0535</div>
+          <div>TRK · 해외지원 · 황종현 · 010-3168-7060</div>
           <div>WMT · 생산 · 모연선 · 010-9048-1022</div>
         </div>
       </div>
@@ -362,7 +363,7 @@ const people = [
   {co:"TRK",dept:"국내지원",name:"조신후",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-2459-9961",area:"양평"},
   {co:"TRK",dept:"국내지원",name:"곽은정",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-5187-0325",area:"여수"},
   {co:"TRK",dept:"해외지원",name:"문태호",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9138-5901",area:"미정"},
-  {co:"TRK",dept:"해외지원",name:"황종현",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-3168-7060",area:"미정"},
+  {co:"TRK",dept:"해외지원",name:"황종현",days7:[],days8b:[3,4,5,6,7],note:"비상근무",tel:"010-3168-7060",area:"미정"},
   {co:"TRK",dept:"해외지원",name:"김수민",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-7472-3478",area:"미정"},
   {co:"TRK",dept:"해외지원",name:"박원",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-8608-8925",area:"미정"},
   {co:"TRK",dept:"해외지원",name:"주지선",days7:[27,28,29,30,31],days8b:[],note:"",tel:"010-9049-2847",area:"미정"},
@@ -603,7 +604,7 @@ renderTable('all');
 const ctx = document.getElementById('donut').getContext('2d');
 new Chart(ctx,{type:'doughnut',data:{
   labels:['1차(7/27~7/31)','2차(8/3~8/7)','미정','휴가없음'],
-  datasets:[{data:[50,10,14,0],backgroundColor:['#4299E1','#48BB78','#ECC94B','#FC8181'],borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
+  datasets:[{data:[49,11,14,0],backgroundColor:['#4299E1','#48BB78','#ECC94B','#FC8181'],borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
 },options:{cutout:'68%',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}명`}}}}});
 
 // ─── 캘린더 ───────────────────────────────────────
